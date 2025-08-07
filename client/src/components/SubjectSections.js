@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const SubjectSections = ({ subject, onUpdate }) => {
@@ -9,6 +9,12 @@ const SubjectSections = ({ subject, onUpdate }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  // Always use list view
+  const viewMode = 'list';
+  const [expandedSections, setExpandedSections] = useState(new Set(['academicCalendar', 'testSchedules']));
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const sections = [
     {
@@ -158,12 +164,25 @@ const SubjectSections = ({ subject, onUpdate }) => {
       file: null
     });
     setError('');
+    setUploadProgress(0);
+    
+    // Ensure the section is expanded when editing
+    const newExpanded = new Set(expandedSections);
+    newExpanded.add(section.name);
+    setExpandedSections(newExpanded);
   };
 
   const handleCancelEdit = () => {
     setEditingSection(null);
     setSectionData({ description: '', file: null });
     setError('');
+    setUploadProgress(0);
+    
+    // Clear any file inputs
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      input.value = '';
+    });
   };
 
   const handleInputChange = (e) => {
@@ -176,21 +195,25 @@ const SubjectSections = ({ subject, onUpdate }) => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file type
+      // Check file type - support multiple formats as shown in UI
       const allowedTypes = [
         'application/pdf',
         'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       ];
       
       if (!allowedTypes.includes(file.type)) {
-        setError('Only PDF and Word documents are allowed!');
+        setError('Only PDF, Word, and PowerPoint files are allowed!');
+        e.target.value = ''; // Clear the input
         return;
       }
 
       // Check file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
         setError('File size must be less than 10MB!');
+        e.target.value = ''; // Clear the input
         return;
       }
 
@@ -199,19 +222,27 @@ const SubjectSections = ({ subject, onUpdate }) => {
         file: file
       });
       setError('');
+      console.log('File selected:', file.name, file.type, file.size);
     }
   };
 
   const handleSaveSection = async () => {
+    if (!sectionData.file) {
+      setError('Please select a file to upload.');
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setUploadProgress(0);
 
     try {
       const formData = new FormData();
       formData.append('description', sectionData.description);
-      if (sectionData.file) {
-        formData.append('file', sectionData.file);
-      }
+      formData.append('file', sectionData.file);
+      formData.append('sectionName', editingSection);
+
+      console.log('Uploading file:', sectionData.file.name, 'for section:', editingSection);
 
       const response = await axios.put(
         `/api/subjects/${subject._id}/section/${editingSection}`,
@@ -219,15 +250,31 @@ const SubjectSections = ({ subject, onUpdate }) => {
         {
           headers: {
             'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadProgress(percentCompleted);
           }
         }
       );
 
+      console.log('Upload successful:', response.data);
       onUpdate(response.data);
       setEditingSection(null);
       setSectionData({ description: '', file: null });
+      setUploadProgress(0);
+      
+      // Clear the file input
+      const fileInput = document.getElementById(`file-${editingSection}`);
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update section');
+      console.error('Upload error:', err);
+      setError(err.response?.data?.message || 'Failed to upload file. Please try again.');
+      setUploadProgress(0);
     } finally {
       setLoading(false);
     }
@@ -256,12 +303,34 @@ const SubjectSections = ({ subject, onUpdate }) => {
     setError('');
 
     try {
+      // Log all files that should be included in the merge
+      const sectionsWithFiles = sections.filter(section => {
+        const sectionData = subject[section.name];
+        return sectionData && sectionData.fileName && sectionData.fileName.trim() !== '';
+      });
+      
+      console.log('Attempting to download merged PDF with files from sections:', 
+        sectionsWithFiles.map(section => ({
+          section: section.name,
+          fileName: subject[section.name].fileName,
+          uploadedAt: subject[section.name].uploadedAt
+        }))
+      );
+      
+      if (sectionsWithFiles.length === 0) {
+        setError('No files found to merge. Please upload some files first.');
+        return;
+      }
+
       const response = await axios.get(
         `/api/subjects/${subject._id}/download-merged-pdf`,
         {
-          responseType: 'blob'
+          responseType: 'blob',
+          timeout: 60000 // 60 second timeout for large files
         }
       );
+
+      console.log('Download response received, size:', response.data.size);
 
       // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -270,7 +339,7 @@ const SubjectSections = ({ subject, onUpdate }) => {
       
       // Get filename from response headers or create default
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `${subject.subjectName}_${subject.subjectId}_merged.pdf`;
+      let filename = `${subject.subjectName || 'Subject'}_${subject.subjectCode || 'Code'}_merged.pdf`;
       
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="(.+)"/);
@@ -279,133 +348,328 @@ const SubjectSections = ({ subject, onUpdate }) => {
         }
       }
       
+      console.log('Downloading file:', filename);
+      
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      console.log('Download initiated successfully');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to download merged PDF');
+      console.error('Download error:', err);
+      if (err.response?.status === 400) {
+        setError(err.response?.data?.message || 'No files found to merge');
+      } else if (err.code === 'ECONNABORTED') {
+        setError('Download timeout. Please try again.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to download merged PDF. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Check if there are any files to download
-  const hasFilesToDownload = sections.some(section => 
-    subject[section.name]?.fileName && subject[section.name].fileName.trim() !== ''
-  );
+  // Check if there are any files to download - improved logic
+  const hasFilesToDownload = sections.some(section => {
+    const sectionData = subject[section.name];
+    const hasFile = sectionData && sectionData.fileName && sectionData.fileName.trim() !== '';
+    if (hasFile) {
+      console.log(`Found file for ${section.name}:`, sectionData.fileName);
+    }
+    return hasFile;
+  });
+  
+  // Debug: Log all sections with files
+  console.log('Sections with files:', sections.filter(section => {
+    const sectionData = subject[section.name];
+    return sectionData && sectionData.fileName && sectionData.fileName.trim() !== '';
+  }).map(section => ({ name: section.name, fileName: subject[section.name].fileName })));
+  
+  console.log('hasFilesToDownload:', hasFilesToDownload);
+
+  // Filter sections based on search term and status
+  const filteredSections = sections.filter(section => {
+    const matchesSearch = section.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         section.defaultDescription.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (filterStatus === 'uploaded') {
+      return subject[section.name]?.fileName;
+    } else if (filterStatus === 'pending') {
+      return !subject[section.name]?.fileName;
+    }
+    return true;
+  });
+
+  // Toggle section expansion
+  const toggleSectionExpansion = (sectionName) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionName)) {
+      newExpanded.delete(sectionName);
+    } else {
+      newExpanded.add(sectionName);
+    }
+    setExpandedSections(newExpanded);
+  };
+
+  // Get upload statistics
+  const getUploadStats = () => {
+    const total = sections.length;
+    const uploaded = sections.filter(section => subject[section.name]?.fileName).length;
+    const pending = total - uploaded;
+    return { total, uploaded, pending, percentage: Math.round((uploaded / total) * 100) };
+  };
+
+  const stats = getUploadStats();
 
   return (
-    <div className="subject-sections">
-      <div className="sections-header">
-        <h3>Subject Sections</h3>
-        {hasFilesToDownload && (
-          <button
-            className="btn btn-primary download-btn"
-            onClick={handleDownloadMergedPdf}
-            disabled={loading}
-          >
-            {loading ? 'Downloading...' : '📥 Download Merged PDF'}
-          </button>
-        )}
+    <div className="subject-sections-modern">
+      {/* Simple Header with Download Button */}
+      <div className="simple-header">
+        <div className="header-title">
+          <h3>Subject Sections</h3>
+        </div>
+        <div className="header-actions">
+          {hasFilesToDownload && (
+            <button
+              className="btn-modern btn-primary-modern"
+              onClick={handleDownloadMergedPdf}
+              disabled={loading}
+            >
+              <span className="btn-icon">📥</span>
+              {loading ? 'Downloading...' : 'Download Merged PDF'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Enhanced Controls */}
+      <div className="controls-section">
+        <div className="search-filter-controls">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search sections..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          <div className="filter-controls">
+            <select 
+              value={filterStatus} 
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Sections ({sections.length})</option>
+              <option value="uploaded">Uploaded ({stats.uploaded})</option>
+              <option value="pending">Pending ({stats.pending})</option>
+            </select>
+          </div>
+        </div>
+        {/* Removed view-controls */}
       </div>
       
+      {/* Error Alert */}
       {error && (
-        <div className="alert alert-error">
-          {error}
-          <button onClick={() => setError('')} className="close-btn">&times;</button>
+        <div className="alert-modern alert-error">
+          <span className="alert-icon">⚠️</span>
+          <span className="alert-message">{error}</span>
+          <button onClick={() => setError('')} className="alert-close">&times;</button>
         </div>
       )}
 
-      <div className="sections-grid">
-        {sections.map((section) => (
-          <div key={section.name} className="section-card">
-            <div className="section-header">
-              <div className="section-title">
-                <span className="section-icon">{section.icon}</span>
-                <h4>{section.title}</h4>
-              </div>
-              {editingSection !== section.name && (
-                <button
-                  className="btn btn-small btn-secondary"
-                  onClick={() => handleEditSection(section)}
+      {/* Enhanced Sections Grid */}
+      <div className={`sections-container ${viewMode}`}>
+        {filteredSections.length === 0 ? (
+          <div className="no-results">
+            <div className="no-results-icon">🔍</div>
+            <h3>No sections found</h3>
+            <p>Try adjusting your search or filter criteria</p>
+          </div>
+        ) : (
+          <div className={`sections-grid-modern ${viewMode}-view`}>
+            {filteredSections.map((section, index) => {
+              const hasFile = subject[section.name]?.fileName;
+              const isExpanded = expandedSections.has(section.name);
+              
+              return (
+                <div 
+                  key={section.name} 
+                  className={`section-card-modern ${
+                    hasFile ? 'has-file' : 'no-file'
+                  } ${editingSection === section.name ? 'editing' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  Edit
-                </button>
-              )}
-            </div>
-
-            {editingSection === section.name ? (
-              <div className="section-edit-form">
-                <div className="form-group">
-                  <label>Upload File (PDF or Word)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                  />
-                  <small>Maximum file size: 10MB</small>
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSaveSection}
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={handleCancelEdit}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="section-content">
-                <div className="section-description">
-                  <p>{subject[section.name]?.description || section.defaultDescription}</p>
-                </div>
-
-                {subject[section.name]?.fileName ? (
-                  <div className="section-file">
-                    <div className="file-info">
-                      <span className="file-icon">📄</span>
-                      <span className="file-name">{subject[section.name].fileName}</span>
-                      <span className="file-date">
-                        Uploaded: {formatDate(subject[section.name].uploadedAt)}
-                      </span>
+                  {/* Card Header */}
+                  <div className="card-header-modern">
+                    <div className="card-title-section">
+                      <div className="section-number">{index + 1}</div>
+                      <div className="section-icon-modern">{section.icon}</div>
+                      <div className="section-title-content">
+                        <h4 className="section-title-modern">{section.title}</h4>
+                        <div className="section-status">
+                          {hasFile ? (
+                            <span className="status-badge uploaded">✓ Uploaded</span>
+                          ) : (
+                            <span className="status-badge pending">⏳ Pending</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="file-actions">
-                      <a
-                        href={`http://localhost:5000${subject[section.name].fileUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-small btn-primary"
-                      >
-                        View
-                      </a>
+                    
+                    <div className="card-actions">
                       <button
-                        className="btn btn-small btn-danger"
-                        onClick={() => handleDeleteFile(section.name)}
+                        className="expand-btn"
+                        onClick={() => toggleSectionExpansion(section.name)}
+                        title={isExpanded ? 'Collapse' : 'Expand'}
                       >
-                        Delete
+                        {isExpanded ? '▼' : '▶'}
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="no-file">
-                    <p>No file uploaded</p>
+
+                  {/* Expandable Content */}
+                  <div className={`card-content-modern ${isExpanded ? 'expanded' : 'collapsed'}`}>
+                    {editingSection === section.name ? (
+                      <div className="section-edit-form-modern">
+                        <div className="upload-area">
+                          <div className="upload-dropzone">
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.ppt,.pptx"
+                              onChange={handleFileChange}
+                              className="file-input-hidden"
+                              id={`file-${section.name}`}
+                            />
+                            <label htmlFor={`file-${section.name}`} className="upload-label">
+                              <div className="upload-icon">📁</div>
+                              <div className="upload-text">
+                                <strong>Choose file or drag and drop</strong>
+                                <span>PDF, Word, and PowerPoint files</span>
+                                <span className="file-size-limit">Maximum file size: 10MB</span>
+                              </div>
+                            </label>
+                          </div>
+                          
+                          {uploadProgress > 0 && uploadProgress < 100 && (
+                            <div className="upload-progress">
+                              <div className="progress-bar-upload">
+                                <div 
+                                  className="progress-fill-upload" 
+                                  style={{ width: `${uploadProgress}%` }}
+                                ></div>
+                              </div>
+                              <span className="progress-text">{uploadProgress}%</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="form-actions-modern">
+                          <button
+                            className="btn-modern btn-primary-modern"
+                            onClick={handleSaveSection}
+                            disabled={loading || !sectionData.file}
+                          >
+                            {loading ? (
+                              <>
+                                <span className="spinner"></span>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <span className="btn-icon">💾</span>
+                                Save Changes
+                              </>
+                            )}
+                          </button>
+                          <button
+                            className="btn-modern btn-secondary-modern"
+                            onClick={handleCancelEdit}
+                            disabled={loading}
+                          >
+                            <span className="btn-icon">✕</span>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="section-content-modern">
+                        <div className="section-description-modern">
+                          <p>{subject[section.name]?.description || section.defaultDescription}</p>
+                        </div>
+
+                        {hasFile ? (
+                          <div className="file-display-modern">
+                            <div className="file-card">
+                              <div className="file-info-modern">
+                                <div className="file-icon-large">📄</div>
+                                <div className="file-details">
+                                  <div className="file-name-modern">
+                                    {subject[section.name].fileName}
+                                  </div>
+                                  <div className="file-meta">
+                                    <span className="file-date">
+                                      📅 {formatDate(subject[section.name].uploadedAt)}
+                                    </span>
+                                    <span className="file-size">
+                                      📊 {subject[section.name].fileSize || 'Unknown size'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="file-actions-modern">
+                                <a
+                                  href={`http://localhost:5000${subject[section.name].fileUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn-modern btn-view"
+                                  title="View File"
+                                >
+                                  <span className="btn-icon">👁️</span>
+                                  View
+                                </a>
+                                <button
+                                  className="btn-modern btn-danger-modern"
+                                  onClick={() => handleDeleteFile(section.name)}
+                                  title="Delete File"
+                                >
+                                  <span className="btn-icon">🗑️</span>
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="no-file-modern">
+                            <div className="no-file-icon">📂</div>
+                            <p className="no-file-text">No file uploaded yet</p>
+                            <p className="no-file-hint">Click "Upload File" to add your document</p>
+                          </div>
+                        )}
+                        
+                        <div className="section-actions-modern">
+                          <button
+                            className="btn-modern btn-edit"
+                            onClick={() => handleEditSection(section)}
+                          >
+                            <span className="btn-icon">{hasFile ? '📝' : '📤'}</span>
+                            {hasFile ? 'Edit' : 'Upload File'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

@@ -1,70 +1,47 @@
 import React, { useState } from 'react';
 
-const AcademicYearSelector = ({ onYearSelect, teacher }) => {
+const AcademicYearSelector = ({ onYearSelect }) => {
   const [selectedYear, setSelectedYear] = useState('');
   const [error, setError] = useState('');
-
-  // Generate academic year options (current year and previous years)
-  const generateYearOptions = () => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    
-    for (let i = 0; i < 5; i++) {
-      const startYear = currentYear - i;
-      const endYear = startYear + 1;
-      years.push(`${startYear}-${endYear.toString().slice(-2)}`);
-    }
-    
-    return years;
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedYear) {
-      setError('Please select an academic year');
+      setError('Please enter the academic year');
       return;
     }
     setError('');
     onYearSelect(selectedYear);
   };
 
-  const yearOptions = generateYearOptions();
-
   return (
-    <div className="academic-year-selector">
-      <div className="container">
-        <div className="year-selector-card">
-          <div className="card-header">
-            <h2>Welcome, {teacher?.name}!</h2>
-            <p>Please select the academic year to view your subjects</p>
+    <div className="academic-year-modern-bg">
+      <div className="academic-year-modern-center">
+        <div className="academic-year-modern-card">
+          <div className="academic-year-modern-icon">
+            <span role="img" aria-label="calendar">📅</span>
           </div>
-          
-          <form onSubmit={handleSubmit} className="year-form">
-            {error && (
-              <div className="alert alert-error">
-                {error}
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="academicYear">Academic Year</label>
-              <select
+          <h2 className="academic-year-modern-title">Select Academic Year</h2>
+          <p className="academic-year-modern-subtitle">
+            Choose the academic year to access your course dashboard
+          </p>
+          <form onSubmit={handleSubmit} className="academic-year-modern-form">
+            <div className="academic-year-modern-form-group">
+              <label htmlFor="academicYear" className="academic-year-modern-label">Academic Year</label>
+              <input
                 id="academicYear"
+                type="text"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="form-select"
-              >
-                <option value="">Select Academic Year (e.g., 2023-24)</option>
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+                className={`academic-year-modern-input${error ? ' error' : ''}`}
+                placeholder="e.g., 2024-25"
+                autoFocus
+              />
+              <div className="academic-year-modern-helper">Format: YYYY-YY (e.g., 2024-25)</div>
+              {error && <div className="academic-year-modern-error">{error}</div>}
             </div>
-            
-            <button type="submit" className="btn btn-primary btn-large">
-              Continue to Dashboard
+            <button type="submit" className="academic-year-modern-btn">
+              Continue to Dashboard <span className="academic-year-modern-arrow">→</span>
             </button>
           </form>
         </div>

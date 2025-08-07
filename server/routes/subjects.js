@@ -1,6 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload, createHierarchicalPath } = require('../middleware/upload');
 const Subject = require('../models/Subject');
 const fs = require('fs');
 const path = require('path');
@@ -9,6 +9,22 @@ const mammoth = require('mammoth');
 const { jsPDF } = require('jspdf');
 
 const router = express.Router();
+
+// Helper function to get the hierarchical file path
+function getHierarchicalFilePath(subject, teacher, fileName) {
+  const hierarchicalPath = createHierarchicalPath(
+    subject.academicYear, 
+    subject.department, 
+    teacher.facultyId, 
+    subject._id.toString()
+  );
+  return path.join(hierarchicalPath, fileName);
+}
+
+// Helper function to get the file URL with hierarchical structure
+function getHierarchicalFileUrl(subject, teacher, fileName) {
+  return `/uploads/${subject.academicYear}/${subject.department}/${teacher.facultyId}/${subject._id}/${fileName}`;
+}
 
 // @route   GET /api/subjects
 // @desc    Get all subjects for a teacher (optionally filtered by academic year)
@@ -57,10 +73,10 @@ router.get('/:id', auth, async (req, res) => {
 // @access  Private
 router.post('/', auth, async (req, res) => {
   try {
-    const { academicYear, year, semester, subjectCode, subjectName, regulation } = req.body;
+    const { academicYear, year, semester, subjectCode, subjectName, regulation, department, class: className } = req.body;
 
     // Check if all required fields are provided
-    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation) {
+    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation || !department || !className) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -81,7 +97,9 @@ router.post('/', auth, async (req, res) => {
       semester,
       subjectCode,
       subjectName,
-      regulation
+      regulation,
+      department,
+      class: className
     });
 
     const savedSubject = await newSubject.save();
@@ -97,10 +115,10 @@ router.post('/', auth, async (req, res) => {
 // @access  Private
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { academicYear, year, semester, subjectCode, subjectName, regulation } = req.body;
+    const { academicYear, year, semester, subjectCode, subjectName, regulation, department, class: className } = req.body;
 
     // Check if all required fields are provided
-    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation) {
+    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation || !department || !className) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -130,6 +148,8 @@ router.put('/:id', auth, async (req, res) => {
     subject.subjectCode = subjectCode;
     subject.subjectName = subjectName;
     subject.regulation = regulation;
+    subject.department = department;
+    subject.class = className;
 
     const updatedSubject = await subject.save();
     res.json(updatedSubject);
@@ -153,15 +173,44 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' });
     }
 
-    // Delete associated files
-    const sections = ['timetable', 'lessonplan', 'midsheets'];
+    // Delete associated files from all sections
+    const sections = [
+      'academicCalendar', 'testSchedules', 'listOfHolidays', 'subjectAllocation',
+      'individualClassTimeTable', 'listOfRegisteredStudents', 'courseSyllabus',
+      'lessonPlan', 'unitWiseHandOuts', 'unitWiseLectureNotes', 'contentOfTopicsBeyondSyllabus',
+      'tutorialScripts', 'questionBank', 'previousQuestionPapers', 'sampleQuestionPapers',
+      'modelQuestionPapers', 'assignmentQuestions', 'internalAssessmentQuestionPapers',
+      'studentAttendance', 'internalMarks', 'remedialClasses', 'slowLearnersList',
+      'advancedLearnersList', 'industryExpertLectures', 'coPoMapping', 'coAttainment',
+      'poAttainment', 'courseExitSurvey', 'studentFeedback', 'peerReview',
+      'selfAppraisal', 'timetable', 'lessonplan', 'midsheets'
+    ];
+    
     for (const section of sections) {
-      if (subject[section].fileName) {
-        const filePath = path.join(__dirname, '..', 'uploads', subject[section].fileName);
+      if (subject[section] && subject[section].fileName) {
+        const filePath = getHierarchicalFilePath(subject, req.teacher, subject[section].fileName);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
       }
+    }
+    
+    // Try to remove the subject folder if it's empty
+    try {
+      const subjectFolderPath = createHierarchicalPath(
+        subject.academicYear, 
+        subject.department, 
+        req.teacher.facultyId, 
+        subject._id.toString()
+      );
+      if (fs.existsSync(subjectFolderPath)) {
+        const files = fs.readdirSync(subjectFolderPath);
+        if (files.length === 0) {
+          fs.rmdirSync(subjectFolderPath);
+        }
+      }
+    } catch (error) {
+      console.log('Could not remove empty folder:', error.message);
     }
 
     await Subject.findByIdAndDelete(req.params.id);
@@ -181,7 +230,17 @@ router.put('/:id/section/:sectionName', auth, upload.single('file'), async (req,
     const { description } = req.body;
 
     // Validate section name
-    const validSections = ['timetable', 'lessonplan', 'midsheets'];
+    const validSections = [
+      'academicCalendar', 'testSchedules', 'listOfHolidays', 'subjectAllocation',
+      'individualClassTimeTable', 'listOfRegisteredStudents', 'courseSyllabus',
+      'lessonPlan', 'unitWiseHandOuts', 'unitWiseLectureNotes', 'contentOfTopicsBeyondSyllabus',
+      'tutorialScripts', 'questionBank', 'previousQuestionPapers', 'sampleQuestionPapers',
+      'modelQuestionPapers', 'assignmentQuestions', 'internalAssessmentQuestionPapers',
+      'studentAttendance', 'internalMarks', 'remedialClasses', 'slowLearnersList',
+      'advancedLearnersList', 'industryExpertLectures', 'coPoMapping', 'coAttainment',
+      'poAttainment', 'courseExitSurvey', 'studentFeedback', 'peerReview',
+      'selfAppraisal', 'timetable', 'lessonplan', 'midsheets'
+    ];
     if (!validSections.includes(sectionName)) {
       return res.status(400).json({ message: 'Invalid section name' });
     }
@@ -204,15 +263,15 @@ router.put('/:id/section/:sectionName', auth, upload.single('file'), async (req,
     if (req.file) {
       // Delete old file if exists
       if (subject[sectionName].fileName) {
-        const oldFilePath = path.join(__dirname, '..', 'uploads', subject[sectionName].fileName);
+        const oldFilePath = getHierarchicalFilePath(subject, req.teacher, subject[sectionName].fileName);
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
         }
       }
 
-      // Update file information
+      // Update file information with new hierarchical structure
       subject[sectionName].fileName = req.file.filename;
-      subject[sectionName].fileUrl = `/uploads/${req.file.filename}`;
+      subject[sectionName].fileUrl = getHierarchicalFileUrl(subject, req.teacher, req.file.filename);
       subject[sectionName].uploadedAt = new Date();
     }
 
@@ -232,7 +291,17 @@ router.delete('/:id/section/:sectionName/file', auth, async (req, res) => {
     const { sectionName } = req.params;
 
     // Validate section name
-    const validSections = ['timetable', 'lessonplan', 'midsheets'];
+    const validSections = [
+      'academicCalendar', 'testSchedules', 'listOfHolidays', 'subjectAllocation',
+      'individualClassTimeTable', 'listOfRegisteredStudents', 'courseSyllabus',
+      'lessonPlan', 'unitWiseHandOuts', 'unitWiseLectureNotes', 'contentOfTopicsBeyondSyllabus',
+      'tutorialScripts', 'questionBank', 'previousQuestionPapers', 'sampleQuestionPapers',
+      'modelQuestionPapers', 'assignmentQuestions', 'internalAssessmentQuestionPapers',
+      'studentAttendance', 'internalMarks', 'remedialClasses', 'slowLearnersList',
+      'advancedLearnersList', 'industryExpertLectures', 'coPoMapping', 'coAttainment',
+      'poAttainment', 'courseExitSurvey', 'studentFeedback', 'peerReview',
+      'selfAppraisal', 'timetable', 'lessonplan', 'midsheets'
+    ];
     if (!validSections.includes(sectionName)) {
       return res.status(400).json({ message: 'Invalid section name' });
     }
@@ -248,7 +317,7 @@ router.delete('/:id/section/:sectionName/file', auth, async (req, res) => {
 
     // Delete file if exists
     if (subject[sectionName].fileName) {
-      const filePath = path.join(__dirname, '..', 'uploads', subject[sectionName].fileName);
+      const filePath = getHierarchicalFilePath(subject, req.teacher, subject[sectionName].fileName);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
@@ -281,15 +350,36 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' });
     }
 
+    // Updated sections to match the actual section names in SubjectSections component
     const sections = [
-      { name: 'timetable', title: 'Timetable' },
-      { name: 'lessonplan', title: 'Lesson Plan' },
-      { name: 'midsheets', title: 'Mid Sheets' }
+      { name: 'academicCalendar', title: 'Academic Calendar' },
+      { name: 'testSchedules', title: 'Test Schedules' },
+      { name: 'listOfHolidays', title: 'List of Holidays' },
+      { name: 'subjectAllocation', title: 'Subject Allocation' },
+      { name: 'individualClassTimeTable', title: 'Individual Class Time Table' },
+      { name: 'listOfRegisteredStudents', title: 'List of Registered Students' },
+      { name: 'courseSyllabus', title: 'Course Syllabus' },
+      { name: 'lessonPlan', title: 'Lesson Plan' },
+      { name: 'unitWiseHandOuts', title: 'Unit Wise Hand-outs' },
+      { name: 'unitWiseLectureNotes', title: 'Unit-Wise Lecture Notes' },
+      { name: 'contentOfTopicsBeyondSyllabus', title: 'Content of Topics Beyond Syllabus' },
+      { name: 'tutorialScripts', title: 'Tutorial Scripts' },
+      { name: 'questionBank', title: 'Question Bank' },
+      { name: 'previousQuestionPapers', title: 'Previous Question Papers' },
+      { name: 'internalEvaluation1', title: 'Internal Evaluation 1' },
+      { name: 'internalEvaluation2', title: 'Internal Evaluation 2' },
+      { name: 'overallInternalEvaluationMarks', title: 'Overall Internal Evaluation Marks' },
+      { name: 'semesterEndExaminationQuestionPaper', title: 'Semester End Examination Question Paper' },
+      { name: 'resultAnalysis', title: 'Result Analysis' },
+      { name: 'innovativeMethodsEmployed', title: 'Innovative Methods Employed' },
+      { name: 'recordOfAttendanceAndAssessment', title: 'Record of Attendance and Assessment' },
+      { name: 'studentFeedbackReport', title: 'Student Feedback Report' },
+      { name: 'recordOfAttainmentOfCourseOutcomes', title: 'Record of Attainment of Course Outcomes' }
     ];
 
     // Check if there are any files to merge
     const sectionsWithFiles = sections.filter(section => 
-      subject[section.name].fileName && subject[section.name].fileName.trim() !== ''
+      subject[section.name] && subject[section.name].fileName && subject[section.name].fileName.trim() !== ''
     );
 
     if (sectionsWithFiles.length === 0) {
@@ -338,7 +428,7 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
     // Process each section file in order
     for (const section of sectionsWithFiles) {
       const fileName = subject[section.name].fileName;
-      const filePath = path.join(__dirname, '..', 'uploads', fileName);
+      const filePath = getHierarchicalFilePath(subject, req.teacher, fileName);
       
       if (fs.existsSync(filePath)) {
         const fileExt = path.extname(fileName).toLowerCase();

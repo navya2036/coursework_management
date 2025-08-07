@@ -15,7 +15,8 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
     subjectCode: '',
     subjectName: '',
     regulation: '',
-    department: ''
+    department: '',
+    class: ''
   });
 
   useEffect(() => {
@@ -23,6 +24,38 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
       fetchSubjects();
     }
   }, [academicYear]);
+
+  // Add sample data for demonstration (remove this in production)
+  useEffect(() => {
+    if (subjects.length === 0 && !loading) {
+      // Uncomment the following lines to add sample data for demonstration
+      /*
+      const sampleSubjects = [
+        {
+          _id: 'sample1',
+          subjectName: 'Machine Learning',
+          subjectCode: 'CS501',
+          semester: '5',
+          year: '3rd Year',
+          department: 'Computer Science',
+          class: 'CSE-A',
+          regulation: 'R20'
+        },
+        {
+          _id: 'sample2',
+          subjectName: 'Data Structures',
+          subjectCode: 'CS402',
+          semester: '4',
+          year: '2nd Year',
+          department: 'Computer Science',
+          class: 'CSE-B',
+          regulation: 'R20'
+        }
+      ];
+      setSubjects(sampleSubjects);
+      */
+    }
+  }, [subjects.length, loading]);
 
   const fetchSubjects = async () => {
     try {
@@ -59,7 +92,8 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
         subjectCode: '',
         subjectName: '',
         regulation: '',
-        department: ''
+        department: '',
+        class: ''
       });
       setShowAddForm(false);
       fetchSubjects();
@@ -76,7 +110,8 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
       subjectCode: subject.subjectCode,
       subjectName: subject.subjectName,
       regulation: subject.regulation,
-      department: subject.department || ''
+      department: subject.department || '',
+      class: subject.class || ''
     });
     setShowAddForm(true);
   };
@@ -101,7 +136,8 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
       subjectCode: '',
       subjectName: '',
       regulation: '',
-      department: ''
+      department: '',
+      class: ''
     });
   };
 
@@ -121,17 +157,15 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
 
   if (loading) {
     return (
-      <div className="dashboard">
+      <div className="dashboard-modern">
         <div className="container">
-          <div className="dashboard-header">
-            <h1>Loading Dashboard...</h1>
-          </div>
+          <div className="loading-spinner">Loading...</div>
         </div>
       </div>
     );
   }
 
-    // If a subject is selected, show the subject details page
+  // If a subject is selected, show the subject details page
   if (selectedSubject) {
     return (
       <SubjectDetails
@@ -143,22 +177,20 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
   }
 
   return (
-    <div className="dashboard">
+    <div className="dashboard-modern">
       <div className="container">
-        <div className="dashboard-header">
-          <div className="header-content">
-            <div className="header-text">
-              <h1>Welcome back, {teacher?.name}!</h1>
-              <p>Academic Year: <strong>{academicYear}</strong> | Manage your subjects here</p>
-            </div>
-            <button 
-              className="btn btn-secondary btn-back"
-              onClick={onBackToYearSelection}
-              title="Change Academic Year"
-            >
-              ← Change Year
-            </button>
+        <div className="course-dashboard-header">
+          <div className="dashboard-title-section">
+            <h1 className="dashboard-title">Course Dashboard</h1>
+            <p className="dashboard-subtitle">Manage your subjects and course work for 2024-25</p>
           </div>
+          <button 
+            className="add-subject-btn"
+            onClick={() => setShowAddForm(true)}
+          >
+            <span className="plus-icon">+</span>
+            Add Subject
+          </button>
         </div>
 
         {error && (
@@ -168,145 +200,176 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
           </div>
         )}
 
-        <div className="subjects-section">
-          <div className="subjects-header">
-            <h2>My Subjects ({subjects.length})</h2>
-            <button 
-              className="btn btn-primary"
-              onClick={() => setShowAddForm(true)}
-            >
-              Add Subject
-            </button>
-          </div>
-
-          {showAddForm && (
-            <div className="subject-form">
-              <h3>{editingSubject ? 'Edit Subject' : 'Add New Subject'}</h3>
-              <form onSubmit={handleSubmit}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Year</label>
-                    <input
-                      type="text"
-                      name="year"
-                      value={formData.year}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 2nd Year, 3rd Year"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Semester</label>
-                    <select
-                      name="semester"
-                      value={formData.semester}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select Semester</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                    </select>
-                  </div>
+        {showAddForm && (
+          <div className="subject-form-modern">
+            <h3>{editingSubject ? 'Edit Subject' : 'Add New Subject'}</h3>
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Year</label>
+                  <input
+                    type="text"
+                    name="year"
+                    value={formData.year}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 2nd Year, 3rd Year"
+                    required
+                  />
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Subject Code</label>
-                    <input
-                      type="text"
-                      name="subjectCode"
-                      value={formData.subjectCode}
-                      onChange={handleInputChange}
-                      placeholder="e.g., CS101, MATH201"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Subject Name</label>
-                    <input
-                      type="text"
-                      name="subjectName"
-                      value={formData.subjectName}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Data Structures"
-                      required
-                    />
-                  </div>
+                <div className="form-group">
+                  <label>Semester</label>
+                  <select
+                    name="semester"
+                    value={formData.semester}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select Semester</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                  </select>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Regulation</label>
-                    <input
-                      type="text"
-                      name="regulation"
-                      value={formData.regulation}
-                      onChange={handleInputChange}
-                      placeholder="e.g., R18, R20"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Department</label>
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Computer Science, Mathematics"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">
-                    {editingSubject ? 'Update Subject' : 'Add Subject'}
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={handleCancel}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          <div className="subjects-grid">
-            {subjects.length === 0 ? (
-              <div className="no-subjects">
-                <p>No subjects added yet. Click "Add Subject" to get started!</p>
               </div>
-            ) : (
-                             subjects.map((subject) => (
-                 <div key={subject._id} className="subject-card">
-                   <div className="subject-header">
-                     <div className="subject-info">
-                       <h3>{subject.subjectName}</h3>
-                       <p className="subject-class">Class: {subject.class}</p>
-                     </div>
-                     <div className="subject-actions">
-                       <button 
-                         className="btn btn-small btn-primary"
-                         onClick={() => handleViewSubject(subject)}
-                       >
-                         Course Work
-                       </button>
-                       <button 
-                         className="btn btn-small btn-secondary"
-                         onClick={() => handleEdit(subject)}
-                       >
-                         Edit
-                       </button>
-                       <button 
-                         className="btn btn-small btn-danger"
-                         onClick={() => handleDelete(subject._id)}
-                       >
-                         Delete
-                       </button>
-                     </div>
-                   </div>
-                 </div>
-               ))
-            )}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Subject Code</label>
+                  <input
+                    type="text"
+                    name="subjectCode"
+                    value={formData.subjectCode}
+                    onChange={handleInputChange}
+                    placeholder="e.g., CS101, MATH201"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Subject Name</label>
+                  <input
+                    type="text"
+                    name="subjectName"
+                    value={formData.subjectName}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Data Structures"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Regulation</label>
+                  <input
+                    type="text"
+                    name="regulation"
+                    value={formData.regulation}
+                    onChange={handleInputChange}
+                    placeholder="e.g., R18, R20"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Department</label>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Computer Science, Mathematics"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Class</label>
+                  <input
+                    type="text"
+                    name="class"
+                    value={formData.class}
+                    onChange={handleInputChange}
+                    placeholder="e.g., CSE-A, CSE-B"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary">
+                  {editingSubject ? 'Update Subject' : 'Add Subject'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
+        )}
+
+        <div className="subjects-grid-modern">
+          {subjects.length === 0 ? (
+            <div className="no-subjects">
+              <p>No subjects added yet. Click "Add Subject" to get started!</p>
+            </div>
+          ) : (
+            subjects.map((subject) => (
+              <div key={subject._id} className="subject-card-modern">
+                <div className="subject-card-header">
+                  <div className="subject-title-section">
+                    <h3 className="subject-title">{subject.subjectName}</h3>
+                    <p className="subject-code">{subject.subjectCode}</p>
+                  </div>
+                  <div className="semester-tag">
+                    {subject.semester}th Semester
+                  </div>
+                </div>
+                
+                <div className="subject-details-list">
+                  <div className="detail-item">
+                    <span className="detail-label">Year:</span>
+                    <span className="detail-value">{subject.year}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Department:</span>
+                    <span className="detail-value">{subject.department}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Class:</span>
+                    <span className="detail-value">{subject.class}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Regulation:</span>
+                    <span className="detail-value">{subject.regulation}</span>
+                  </div>
+                </div>
+                
+                <div className="subject-card-actions">
+                  <button 
+                    className="course-work-btn"
+                    onClick={() => handleViewSubject(subject)}
+                  >
+                    <span className="book-icon">📚</span>
+                    Course Work
+                  </button>
+                  <button 
+                    className="edit-btn"
+                    onClick={() => handleEdit(subject)}
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    className="delete-btn"
+                    onClick={() => handleDelete(subject._id)}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Login from './components/Login';
-import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Navbar from './components/Navbar';
 import AcademicYearSelector from './components/AcademicYearSelector';
@@ -10,11 +9,30 @@ import AcademicYearSelector from './components/AcademicYearSelector';
 // Set default axios base URL
 axios.defaults.baseURL = 'http://localhost:5000';
 
+// Global Header Component
+const GlobalHeader = () => (
+  <div className="global-header">
+    <div className="container">
+      <div className="global-header-left">
+        <div className="global-header-logo">🎓</div>
+        <div>
+          <div className="global-header-title">SHRI VISHNU ENGINEERING COLLEGE FOR WOMEN(A)</div>
+          <div className="global-header-subtitle">BHIMAVARAM - Faculty Course Work Portal</div>
+        </div>
+      </div>
+      <div className="global-header-right">
+        {/* Additional header content can go here */}
+      </div>
+    </div>
+  </div>
+);
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [teacher, setTeacher] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -45,9 +63,9 @@ function App() {
     }
   };
 
-  const login = async (email, department, facultyId) => {
+  const login = async (email, password) => {
     try {
-      const res = await axios.post('/api/auth/login', { email, department, facultyId });
+      const res = await axios.post('/api/auth/login', { email, password });
       localStorage.setItem('token', res.data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setTeacher(res.data.teacher);
@@ -57,29 +75,6 @@ function App() {
       return { 
         success: false, 
         message: error.response?.data?.message || 'Login failed' 
-      };
-    }
-  };
-
-  const signup = async (name, email, password, department, facultyId, subjectId) => {
-    try {
-      const res = await axios.post('/api/auth/signup', { 
-        name, 
-        email, 
-        password, 
-        department,
-        facultyId,
-        subjectId
-      });
-      localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-      setTeacher(res.data.teacher);
-      setIsAuthenticated(true);
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Signup failed' 
       };
     }
   };
@@ -103,13 +98,24 @@ function App() {
     setSelectedAcademicYear(null);
   };
 
+  // Only show global header on login and select-year pages
+  const showGlobalHeader = ["/login", "/select-year", "/"].includes(location.pathname);
+  // Show Navbar only on dashboard and subject details (if you have subject details route, add it here)
+  const showNavbar = isAuthenticated && selectedAcademicYear && location.pathname.startsWith("/dashboard");
+
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="App">
+        {showGlobalHeader && <GlobalHeader />}
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
   }
 
   return (
     <div className="App">
-      {isAuthenticated && selectedAcademicYear && <Navbar teacher={teacher} onLogout={logout} />}
+      {showGlobalHeader && <GlobalHeader />}
+      {showNavbar && <Navbar teacher={teacher} onLogout={logout} onChangeYear={handleBackToYearSelection} />}
       <Routes>
         <Route 
           path="/login" 
@@ -117,14 +123,6 @@ function App() {
             isAuthenticated ? 
             (selectedAcademicYear ? <Navigate to="/dashboard" /> : <Navigate to="/select-year" />) : 
             <Login onLogin={login} />
-          } 
-        />
-        <Route 
-          path="/signup" 
-          element={
-            isAuthenticated ? 
-            (selectedAcademicYear ? <Navigate to="/dashboard" /> : <Navigate to="/select-year" />) : 
-            <Signup onSignup={signup} />
           } 
         />
         <Route 
