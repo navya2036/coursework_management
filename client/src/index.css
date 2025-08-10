@@ -28,8 +28,8 @@ code {
 
 /* Modern Login Page Styles */
 .login-page-modern {
-  min-height: 100vh;
-  height: 100vh;
+  min-height: 90%;
+  height: 90%;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
@@ -3232,4 +3232,121 @@ code {
 
 .subject-details-content {
   margin-top: 1.5rem;
+}
+
+/* Vertical Header Layout with Back Button on Top */
+.subject-details-header-vertical {
+  display: flex;
+  flex-direction: column;
+  margin: 1.5rem 0;
+  padding: 0;
+}
+
+.back-button-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.title-row {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-back-compact {
+  background: #64748b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(100, 116, 139, 0.1);
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+}
+
+.btn-back-compact:hover {
+  background: #475569;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(100, 116, 139, 0.15);
+}
+
+.btn-back-compact:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(100, 116, 139, 0.1);
+}
+
+.back-arrow-small {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.subject-title-main {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+/* Responsive Design for Mobile */
+@media (max-width: 768px) {
+  .subject-details-header-vertical {
+    margin: 1rem 0;
+  }
+  
+  .back-button-row {
+    margin-bottom: 1.25rem;
+  }
+  
+  .btn-back-compact {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
+  
+  .back-arrow-small {
+    font-size: 1.1rem;
+  }
+  
+  .subject-title-main {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .subject-details-header-vertical {
+    margin: 0.75rem 0;
+  }
+  
+  .back-button-row {
+    margin-bottom: 1rem;
+  }
+  
+  .btn-back-compact {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .back-arrow-small {
+    font-size: 1rem;
+  }
+  
+  .subject-title-main {
+    font-size: 1.3rem;
+  }
 }

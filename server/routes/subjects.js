@@ -14,7 +14,7 @@ const router = express.Router();
 function getHierarchicalFilePath(subject, teacher, fileName) {
   const hierarchicalPath = createHierarchicalPath(
     subject.academicYear, 
-    subject.department, 
+    teacher.department, 
     teacher.facultyId, 
     subject._id.toString()
   );
@@ -23,7 +23,7 @@ function getHierarchicalFilePath(subject, teacher, fileName) {
 
 // Helper function to get the file URL with hierarchical structure
 function getHierarchicalFileUrl(subject, teacher, fileName) {
-  return `/uploads/${subject.academicYear}/${subject.department}/${teacher.facultyId}/${subject._id}/${fileName}`;
+  return `/uploads/${subject.academicYear}/${teacher.department}/${teacher.facultyId}/${subject._id}/${fileName}`;
 }
 
 // @route   GET /api/subjects
@@ -173,33 +173,40 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' });
     }
 
-    // Delete associated files from all sections
-    const sections = [
-      'academicCalendar', 'testSchedules', 'listOfHolidays', 'subjectAllocation',
-      'individualClassTimeTable', 'listOfRegisteredStudents', 'courseSyllabus',
-      'lessonPlan', 'unitWiseHandOuts', 'unitWiseLectureNotes', 'contentOfTopicsBeyondSyllabus',
-      'tutorialScripts', 'questionBank', 'previousQuestionPapers', 'sampleQuestionPapers',
-      'modelQuestionPapers', 'assignmentQuestions', 'internalAssessmentQuestionPapers',
-      'studentAttendance', 'internalMarks', 'remedialClasses', 'slowLearnersList',
-      'advancedLearnersList', 'industryExpertLectures', 'coPoMapping', 'coAttainment',
-      'poAttainment', 'courseExitSurvey', 'studentFeedback', 'peerReview',
-      'selfAppraisal', 'timetable', 'lessonplan', 'midsheets'
-    ];
+    // Delete associated files from ALL sections (scan entire subject document)
+    console.log('Deleting subject files for:', subject.subjectName);
     
-    for (const section of sections) {
-      if (subject[section] && subject[section].fileName) {
-        const filePath = getHierarchicalFilePath(subject, req.teacher, subject[section].fileName);
+    // Get all keys from the subject document to find sections with files
+    const allSubjectKeys = Object.keys(subject.toObject());
+    let filesDeleted = 0;
+    
+    for (const key of allSubjectKeys) {
+      const sectionData = subject[key];
+      if (sectionData && typeof sectionData === 'object' && sectionData.fileName && sectionData.fileName.trim() !== '') {
+        const filePath = getHierarchicalFilePath(subject, req.teacher, sectionData.fileName);
+        console.log(`Attempting to delete file: ${filePath}`);
+        
         if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+          try {
+            fs.unlinkSync(filePath);
+            filesDeleted++;
+            console.log(`Successfully deleted file: ${sectionData.fileName}`);
+          } catch (error) {
+            console.error(`Error deleting file ${sectionData.fileName}:`, error);
+          }
+        } else {
+          console.log(`File not found: ${filePath}`);
         }
       }
     }
+    
+    console.log(`Total files deleted: ${filesDeleted}`);
     
     // Try to remove the subject folder if it's empty
     try {
       const subjectFolderPath = createHierarchicalPath(
         subject.academicYear, 
-        subject.department, 
+        req.teacher.department, 
         req.teacher.facultyId, 
         subject._id.toString()
       );
@@ -350,7 +357,7 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' });
     }
 
-    // Updated sections to match the actual section names in SubjectSections component
+    // Updated sections to match exactly with the frontend SubjectSections component
     const sections = [
       { name: 'academicCalendar', title: 'Academic Calendar' },
       { name: 'testSchedules', title: 'Test Schedules' },
@@ -358,20 +365,20 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
       { name: 'subjectAllocation', title: 'Subject Allocation' },
       { name: 'individualClassTimeTable', title: 'Individual Class Time Table' },
       { name: 'listOfRegisteredStudents', title: 'List of Registered Students' },
-      { name: 'courseSyllabus', title: 'Course Syllabus' },
-      { name: 'lessonPlan', title: 'Lesson Plan' },
+      { name: 'courseSyllabus', title: 'Course Syllabus along with Text Books and References' },
+      { name: 'lessonPlan', title: 'Lesson Plan including Topics Planned Beyond Syllabus and Tutorials' },
       { name: 'unitWiseHandOuts', title: 'Unit Wise Hand-outs' },
       { name: 'unitWiseLectureNotes', title: 'Unit-Wise Lecture Notes' },
-      { name: 'contentOfTopicsBeyondSyllabus', title: 'Content of Topics Beyond Syllabus' },
+      { name: 'contentOfTopicsBeyondSyllabus', title: 'Content of Topics Beyond the Syllabus' },
       { name: 'tutorialScripts', title: 'Tutorial Scripts' },
       { name: 'questionBank', title: 'Question Bank' },
-      { name: 'previousQuestionPapers', title: 'Previous Question Papers' },
+      { name: 'previousQuestionPapers', title: 'Previous Question papers of Sem End Examination' },
       { name: 'internalEvaluation1', title: 'Internal Evaluation 1' },
       { name: 'internalEvaluation2', title: 'Internal Evaluation 2' },
       { name: 'overallInternalEvaluationMarks', title: 'Overall Internal Evaluation Marks' },
       { name: 'semesterEndExaminationQuestionPaper', title: 'Semester End Examination Question Paper' },
       { name: 'resultAnalysis', title: 'Result Analysis' },
-      { name: 'innovativeMethodsEmployed', title: 'Innovative Methods Employed' },
+      { name: 'innovativeMethodsEmployed', title: 'Innovative Methods Employed in Teaching learning Process' },
       { name: 'recordOfAttendanceAndAssessment', title: 'Record of Attendance and Assessment' },
       { name: 'studentFeedbackReport', title: 'Student Feedback Report' },
       { name: 'recordOfAttainmentOfCourseOutcomes', title: 'Record of Attainment of Course Outcomes' }
@@ -381,6 +388,13 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
     const sectionsWithFiles = sections.filter(section => 
       subject[section.name] && subject[section.name].fileName && subject[section.name].fileName.trim() !== ''
     );
+
+    console.log('Sections with files found:', sectionsWithFiles.length);
+    console.log('Files to merge:', sectionsWithFiles.map(section => ({
+      section: section.name,
+      fileName: subject[section.name].fileName,
+      uploadedAt: subject[section.name].uploadedAt
+    })));
 
     if (sectionsWithFiles.length === 0) {
       return res.status(400).json({ message: 'No files found to merge' });
@@ -426,32 +440,59 @@ router.get('/:id/download-merged-pdf', auth, async (req, res) => {
     };
 
     // Process each section file in order
+    let filesAdded = 0;
     for (const section of sectionsWithFiles) {
       const fileName = subject[section.name].fileName;
       const filePath = getHierarchicalFilePath(subject, req.teacher, fileName);
       
+      console.log(`Processing section: ${section.name}, file: ${fileName}`);
+      console.log(`File path: ${filePath}`);
+      console.log(`File exists: ${fs.existsSync(filePath)}`);
+      
       if (fs.existsSync(filePath)) {
         const fileExt = path.extname(fileName).toLowerCase();
+        console.log(`File extension: ${fileExt}`);
         
-        if (fileExt === '.pdf') {
-          // Add PDF directly
-          await merger.add(filePath);
-        } else if (fileExt === '.doc' || fileExt === '.docx') {
-          // Convert Word document to PDF first
-          const tempPdfPath = path.join(tempDir, `${section.name}_${Date.now()}.pdf`);
-          const converted = await convertWordToPdf(filePath, tempPdfPath);
-          
-          if (converted && fs.existsSync(tempPdfPath)) {
-            await merger.add(tempPdfPath);
-            // Clean up temp file after adding to merger
-            setTimeout(() => {
-              if (fs.existsSync(tempPdfPath)) {
-                fs.unlinkSync(tempPdfPath);
-              }
-            }, 1000);
+        try {
+          if (fileExt === '.pdf') {
+            // Add PDF directly
+            await merger.add(filePath);
+            filesAdded++;
+            console.log(`Successfully added PDF: ${fileName}`);
+          } else if (fileExt === '.doc' || fileExt === '.docx') {
+            // Convert Word document to PDF first
+            const tempPdfPath = path.join(tempDir, `${section.name}_${Date.now()}.pdf`);
+            console.log(`Converting Word document to PDF: ${fileName}`);
+            const converted = await convertWordToPdf(filePath, tempPdfPath);
+            
+            if (converted && fs.existsSync(tempPdfPath)) {
+              await merger.add(tempPdfPath);
+              filesAdded++;
+              console.log(`Successfully converted and added Word document: ${fileName}`);
+              // Clean up temp file after adding to merger
+              setTimeout(() => {
+                if (fs.existsSync(tempPdfPath)) {
+                  fs.unlinkSync(tempPdfPath);
+                }
+              }, 1000);
+            } else {
+              console.error(`Failed to convert Word document: ${fileName}`);
+            }
+          } else {
+            console.log(`Unsupported file type: ${fileExt} for file: ${fileName}`);
           }
+        } catch (error) {
+          console.error(`Error processing file ${fileName}:`, error);
         }
+      } else {
+        console.error(`File not found: ${filePath}`);
       }
+    }
+    
+    console.log(`Total files added to merger: ${filesAdded}`);
+    
+    if (filesAdded === 0) {
+      return res.status(400).json({ message: 'No valid PDF files could be processed for merging' });
     }
 
     // Generate the merged PDF

@@ -40,10 +40,11 @@ const storage = multer.diskStorage({
         return cb(null, uploadPath);
       }
       
-      // Create hierarchical path: academicYear/department/facultyId/subjectId
+      // Create hierarchical path: academicYear/facultyDepartment/facultyId/subjectId
+      // Use faculty's department, not subject's department
       const uploadPath = createHierarchicalPath(
         subject.academicYear, 
-        subject.department, 
+        req.teacher.department, 
         facultyId, 
         subjectId
       );

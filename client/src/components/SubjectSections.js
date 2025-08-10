@@ -13,7 +13,7 @@ const SubjectSections = ({ subject, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   // Always use list view
   const viewMode = 'list';
-  const [expandedSections, setExpandedSections] = useState(new Set(['academicCalendar', 'testSchedules']));
+  const [expandedSections, setExpandedSections] = useState(new Set());
   const [filterStatus, setFilterStatus] = useState('all');
 
   const sections = [

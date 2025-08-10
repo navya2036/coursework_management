@@ -61,12 +61,15 @@ const SubjectDetails = ({ subjectId, onBack, onUpdate }) => {
   return (
     <div className="subject-details-page">
       <div className="container">
-        <div className="subject-details-header-centered">
-          <button className="btn btn-back-small" onClick={onBack}>
-            <span>←</span>
-            <span className="back-label">Back to Dashboard</span>
-          </button>
-          <h1 className="subject-details-title">{subject.subjectName} - Course Work</h1>
+        <div className="subject-details-header-vertical">
+          <div className="back-button-row">
+            <button className="btn btn-back-compact" onClick={onBack}>
+              <span className="back-arrow-small">←</span>
+            </button>
+          </div>
+          <div className="title-row">
+            <h1 className="subject-title-main">{subject.subjectName} - Course Work</h1>
+          </div>
         </div>
 
         <div className="subject-details-content">

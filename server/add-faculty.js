@@ -16,7 +16,7 @@ const facultyData = [
     name: 'Prof. Sarah Johnson',
     email: 'sarah.johnson@college.edu',
     password: 'FAC002',
-    department: 'AIDS',
+    department: 'AI',
     facultyId: 'FAC002',
     subjectId: 'AI201'
   },
@@ -24,7 +24,7 @@ const facultyData = [
     name: 'Dr. Michael Brown',
     email: 'michael.brown@college.edu',
     password: 'FAC003',
-    department: 'AIML',
+    department: 'AI',
     facultyId: 'FAC003',
     subjectId: 'ML301'
   },
