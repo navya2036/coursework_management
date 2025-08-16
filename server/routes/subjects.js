@@ -7,6 +7,7 @@ const path = require('path');
 const PDFMerger = require('pdf-merger-js');
 const mammoth = require('mammoth');
 const { jsPDF } = require('jspdf');
+const { handlePdfUploadWithCover } = require('../utils/pdfUtils');
 
 const router = express.Router();
 
@@ -276,10 +277,18 @@ router.put('/:id/section/:sectionName', auth, upload.single('file'), async (req,
         }
       }
 
+      // Handle file upload with cover page
+      const fileInfo = await handlePdfUploadWithCover(
+        req.file, 
+        sectionName, 
+        subject, 
+        req.teacher
+      );
+      
       // Update file information with new hierarchical structure
-      subject[sectionName].fileName = req.file.filename;
-      subject[sectionName].fileUrl = getHierarchicalFileUrl(subject, req.teacher, req.file.filename);
-      subject[sectionName].uploadedAt = new Date();
+      subject[sectionName].fileName = fileInfo.fileName;
+      subject[sectionName].fileUrl = fileInfo.fileUrl;
+      subject[sectionName].uploadedAt = fileInfo.uploadedAt;
     }
 
     const updatedSubject = await subject.save();
