@@ -11,13 +11,18 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [formData, setFormData] = useState({
     year: '',
-    semester: '',
     subjectCode: '',
     subjectName: '',
     regulation: '',
-    department: '',
-    class: ''
+    class: '',
+    section: 'A' // Default to 'A' section
   });
+  
+  // Available options for dropdowns
+  const yearOptions = ['I-I', 'I-II', 'II-I', 'II-II', 'III-I', 'III-II', 'IV-I', 'IV-II'];
+  const classOptions = ['CSE', 'AIDS', 'AIML', 'CS', 'IT', 'ECE', 'EEE', 'ME', 'CIVIL'];
+  const sectionOptions = ['A', 'B', 'C'];
+  const regulationOptions = ['R23', 'R22', 'R20-R', 'R20', 'R18'];
 
   useEffect(() => {
     if (academicYear) {
@@ -79,22 +84,29 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const subjectData = { ...formData, academicYear };
+      // Combine class and section for the class field (e.g., 'CSE-A')
+      const subjectData = { 
+        ...formData,
+        academicYear,
+        class: `${formData.class}-${formData.section}`
+      };
+      
       if (editingSubject) {
         await axios.put(`/api/subjects/${editingSubject._id}`, subjectData);
         setEditingSubject(null);
       } else {
         await axios.post('/api/subjects', subjectData);
       }
+      
       setFormData({
         year: '',
-        semester: '',
         subjectCode: '',
         subjectName: '',
         regulation: '',
-        department: '',
-        class: ''
+        class: '',
+        section: 'A'
       });
+      
       setShowAddForm(false);
       fetchSubjects();
     } catch (err) {
@@ -104,14 +116,24 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
 
   const handleEdit = (subject) => {
     setEditingSubject(subject);
+    
+    // Split the class into class and section if it contains a hyphen
+    let classValue = subject.class || '';
+    let sectionValue = subject.section || 'A';
+    
+    if (classValue.includes('-')) {
+      const [cls, sec] = classValue.split('-');
+      classValue = cls;
+      sectionValue = sec || 'A';
+    }
+    
     setFormData({
       year: subject.year,
-      semester: subject.semester,
       subjectCode: subject.subjectCode,
       subjectName: subject.subjectName,
       regulation: subject.regulation,
-      department: subject.department || '',
-      class: subject.class || ''
+      class: classValue,
+      section: sectionValue
     });
     setShowAddForm(true);
   };
@@ -132,12 +154,11 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
     setEditingSubject(null);
     setFormData({
       year: '',
-      semester: '',
       subjectCode: '',
       subjectName: '',
       regulation: '',
-      department: '',
-      class: ''
+      class: '',
+      section: 'A'
     });
   };
 
@@ -206,33 +227,50 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
             <form onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Year</label>
-                  <input
-                    type="text"
+                  <label>Year-Semester</label>
+                  <select
                     name="year"
                     value={formData.year}
                     onChange={handleInputChange}
-                    placeholder="e.g., 2nd Year, 3rd Year"
                     required
-                  />
+                  >
+                    <option value="">Select Year-Semester</option>
+                    {yearOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
-                  <label>Semester</label>
+                  <label>Class</label>
                   <select
-                    name="semester"
-                    value={formData.semester}
+                    name="class"
+                    value={formData.class}
                     onChange={handleInputChange}
                     required
                   >
-                    <option value="">Select Semester</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
+                    <option value="">Select Class</option>
+                    {classOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Section</label>
+                  <select
+                    name="section"
+                    value={formData.section}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    {sectionOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -263,38 +301,23 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Regulation</label>
-                  <input
-                    type="text"
+                  <select
                     name="regulation"
                     value={formData.regulation}
                     onChange={handleInputChange}
-                    placeholder="e.g., R18, R20"
                     required
-                  />
+                    className="form-select"
+                  >
+                    <option value="">Select Regulation</option>
+                    {regulationOptions.map((regulation) => (
+                      <option key={regulation} value={regulation}>
+                        {regulation}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
-                  <label>Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Computer Science, Mathematics"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Class</label>
-                  <input
-                    type="text"
-                    name="class"
-                    value={formData.class}
-                    onChange={handleInputChange}
-                    placeholder="e.g., CSE-A, CSE-B"
-                    required
-                  />
+                  {/* Empty div to maintain grid layout */}
                 </div>
               </div>
               <div className="form-actions">
@@ -331,10 +354,6 @@ const Dashboard = ({ teacher, academicYear, onBackToYearSelection }) => {
                   <div className="detail-item">
                     <span className="detail-label">Year:</span>
                     <span className="detail-value">{subject.year}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Department:</span>
-                    <span className="detail-value">{subject.department}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Class:</span>

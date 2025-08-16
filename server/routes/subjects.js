@@ -74,32 +74,39 @@ router.get('/:id', auth, async (req, res) => {
 // @access  Private
 router.post('/', auth, async (req, res) => {
   try {
-    const { academicYear, year, semester, subjectCode, subjectName, regulation, department, class: className } = req.body;
+    const { academicYear, year, subjectCode, subjectName, regulation, class: className } = req.body;
 
     // Check if all required fields are provided
-    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation || !department || !className) {
+    if (!academicYear || !year || !subjectCode || !subjectName || !regulation || !className) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Check if subject code already exists for this teacher in the same academic year
+    // Split year into year and semester (e.g., "II-I" -> year: "II", semester: "I")
+    const [yearPart, semester] = year.split('-');
+    const fullYear = `Year ${yearPart}`; // Convert to format like "Year II"
+
+    // Check if subject code already exists for this teacher in the same academic year and class
     const existingSubject = await Subject.findOne({ 
       teacher: req.teacher._id, 
       subjectCode: subjectCode,
-      academicYear: academicYear
+      academicYear: academicYear,
+      'class': className
     });
+    
     if (existingSubject) {
-      return res.status(400).json({ message: 'Subject with this code already exists for this academic year' });
+      return res.status(400).json({ 
+        message: 'A subject with this code already exists for this academic year and class' 
+      });
     }
 
     const newSubject = new Subject({
       teacher: req.teacher._id,
       academicYear,
-      year,
+      year: fullYear,
       semester,
       subjectCode,
       subjectName,
       regulation,
-      department,
       class: className
     });
 
@@ -116,44 +123,51 @@ router.post('/', auth, async (req, res) => {
 // @access  Private
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { academicYear, year, semester, subjectCode, subjectName, regulation, department, class: className } = req.body;
+    const { year, subjectCode, subjectName, regulation, class: className } = req.body;
 
     // Check if all required fields are provided
-    if (!academicYear || !year || !semester || !subjectCode || !subjectName || !regulation || !department || !className) {
+    if (!year || !subjectCode || !subjectName || !regulation || !className) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const subject = await Subject.findOne({ 
-      _id: req.params.id, 
-      teacher: req.teacher._id 
+    // Split year into year and semester (e.g., "II-I" -> year: "II", semester: "I")
+    const [yearPart, semester] = year.split('-');
+    const fullYear = `Year ${yearPart}`; // Convert to format like "Year II"
+
+    // Check if subject code already exists for this teacher in the same academic year and class (excluding current subject)
+    const existingSubject = await Subject.findOne({ 
+      _id: { $ne: req.params.id },
+      teacher: req.teacher._id, 
+      subjectCode: subjectCode,
+      academicYear: req.body.academicYear,
+      'class': className
     });
+    
+    if (existingSubject) {
+      return res.status(400).json({ 
+        message: 'A subject with this code already exists for this academic year and class' 
+      });
+    }
+
+    const subject = await Subject.findOneAndUpdate(
+      { _id: req.params.id, teacher: req.teacher._id },
+      { $set: { 
+        year: fullYear, 
+        semester, 
+        subjectCode, 
+        subjectName, 
+        regulation, 
+        class: className 
+      }},
+      { new: true }
+    );
 
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' });
     }
 
-    // Check if subject code already exists for this teacher in the same academic year (excluding current subject)
-    const existingSubject = await Subject.findOne({ 
-      teacher: req.teacher._id, 
-      subjectCode: subjectCode,
-      academicYear: academicYear,
-      _id: { $ne: req.params.id }
-    });
-    if (existingSubject) {
-      return res.status(400).json({ message: 'Subject with this code already exists for this academic year' });
-    }
-
-    subject.academicYear = academicYear;
-    subject.year = year;
-    subject.semester = semester;
-    subject.subjectCode = subjectCode;
-    subject.subjectName = subjectName;
-    subject.regulation = regulation;
-    subject.department = department;
-    subject.class = className;
-
-    const updatedSubject = await subject.save();
-    res.json(updatedSubject);
+    // The subject is already updated by findOneAndUpdate, just return it
+    res.json(subject);
   } catch (error) {
     console.error('Update subject error:', error);
     res.status(500).json({ message: 'Server error' });

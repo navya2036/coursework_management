@@ -19,7 +19,7 @@ const subjectSchema = new mongoose.Schema({
   semester: {
     type: String,
     required: true,
-    enum: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    enum: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'],
     trim: true
   },
   subjectCode: {
@@ -39,7 +39,7 @@ const subjectSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    required: true,
+    default: 'N/A',
     trim: true
   },
   class: {
