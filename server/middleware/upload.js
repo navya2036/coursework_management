@@ -72,18 +72,12 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter to allow only PDF and Word documents
+// File filter to allow only PDF files
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
-  
-  if (allowedTypes.includes(file.mimetype)) {
+  if (file.mimetype === 'application/pdf') {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF and Word documents are allowed!'), false);
+    cb(new Error('Invalid file type. Only PDF files are accepted. Please upload a PDF file.'), false);
   }
 };
 

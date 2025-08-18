@@ -195,17 +195,9 @@ const SubjectSections = ({ subject, onUpdate }) => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file type - support multiple formats as shown in UI
-      const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-      ];
-      
-      if (!allowedTypes.includes(file.type)) {
-        setError('Only PDF, Word, and PowerPoint files are allowed!');
+      // Only allow PDF files
+      if (file.type !== 'application/pdf') {
+        setError('Only PDF files are allowed!');
         e.target.value = ''; // Clear the input
         return;
       }
@@ -541,7 +533,7 @@ const SubjectSections = ({ subject, onUpdate }) => {
                           <div className="upload-dropzone">
                             <input
                               type="file"
-                              accept=".pdf,.doc,.docx,.ppt,.pptx"
+                              accept=".pdf,application/pdf"
                               onChange={handleFileChange}
                               className="file-input-hidden"
                               id={`file-${section.name}`}
@@ -549,8 +541,8 @@ const SubjectSections = ({ subject, onUpdate }) => {
                             <label htmlFor={`file-${section.name}`} className="upload-label">
                               <div className="upload-icon">📁</div>
                               <div className="upload-text">
-                                <strong>Choose file or drag and drop</strong>
-                                <span>PDF, Word, and PowerPoint files</span>
+                                <strong>Choose PDF file or drag and drop</strong>
+                                <span>Only PDF files are accepted</span>
                                 <span className="file-size-limit">Maximum file size: 10MB</span>
                               </div>
                             </label>
