@@ -158,6 +158,11 @@ const Login = ({ onLogin }) => {
           </div>
         </div>
       </div>
+      
+      {/* Department Footer */}
+      <footer className="login-footer">
+        <p>Developed by the <span className="department-name">Department of Artificial Intelligence</span></p>
+      </footer>
     </div>
   );
 };
