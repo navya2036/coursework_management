@@ -30,11 +30,6 @@ const teacherSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  subjectId: {
-    type: String,
-    required: true,
-    trim: true
-  },
   createdAt: {
     type: Date,
     default: Date.now

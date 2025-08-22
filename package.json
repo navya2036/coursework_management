@@ -1,7 +1,7 @@
 {
-  "name": "teacher-auth-mern",
+  "name": "teacher-portal",
   "version": "1.0.0",
-  "description": "MERN stack application with teacher authentication",
+  "description": "Teacher Portal - Coursework Management System with role-based access control",
   "main": "index.js",
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
@@ -9,12 +9,34 @@
     "client": "cd client && npm start",
     "dev": "concurrently \"npm run server:dev\" \"npm run client\"",
     "server:dev": "cd server && npm run dev",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+    "client:dev": "cd client && npm start",
+    "setup": "node scripts/setup.js",
+    "setup:win": ".\\setup.bat",
+    "setup:unix": "chmod +x setup.sh && ./setup.sh",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "reset-db": "node server/scripts/setupAdmin.js",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
   },
-  "keywords": ["mern", "authentication", "teacher", "jwt"],
+  "keywords": [
+    "teacher",
+    "portal",
+    "coursework",
+    "management",
+    "mern",
+    "education"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   }
-} 
+}

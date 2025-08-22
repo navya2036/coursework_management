@@ -191,15 +191,30 @@ router.delete('/:id', auth, async (req, res) => {
     // Delete associated files from ALL sections (scan entire subject document)
     console.log('Deleting subject files for:', subject.subjectName);
     
-    // Get all keys from the subject document to find sections with files
-    const allSubjectKeys = Object.keys(subject.toObject());
+    // Get all sections that can contain files
+    const sections = [
+      'academicCalendar', 'testSchedules', 'listOfHolidays', 'subjectAllocation',
+      'individualClassTimeTable', 'listOfRegisteredStudents', 'courseSyllabus',
+      'lessonPlan', 'unitWiseHandOuts', 'unitWiseLectureNotes', 'contentOfTopicsBeyondSyllabus',
+      'tutorialScripts', 'questionBank', 'previousQuestionPapers', 'sampleQuestionPapers',
+      'modelQuestionPapers', 'assignmentQuestions', 'internalAssessmentQuestionPapers',
+      'studentAttendance', 'internalMarks', 'remedialClasses', 'slowLearnersList',
+      'advancedLearnersList', 'industryExpertLectures', 'coPoMapping', 'coAttainment',
+      'poAttainment', 'courseExitSurvey', 'studentFeedback', 'peerReview',
+      'selfAppraisal', 'timetable', 'lessonplan', 'midsheets', 'resultAnalysis',
+      'innovativeMethodsEmployed', 'recordOfAttendanceAndAssessment', 'studentFeedbackReport',
+      'recordOfAttainmentOfCourseOutcomes', 'internalEvaluation1', 'internalEvaluation2',
+      'overallInternalEvaluationMarks', 'semesterEndExaminationQuestionPaper'
+    ];
+    
     let filesDeleted = 0;
     
-    for (const key of allSubjectKeys) {
-      const sectionData = subject[key];
-      if (sectionData && typeof sectionData === 'object' && sectionData.fileName && sectionData.fileName.trim() !== '') {
+    // Delete files from all sections
+    for (const section of sections) {
+      const sectionData = subject[section];
+      if (sectionData && sectionData.fileName && sectionData.fileName.trim() !== '') {
         const filePath = getHierarchicalFilePath(subject, req.teacher, sectionData.fileName);
-        console.log(`Attempting to delete file: ${filePath}`);
+        console.log(`Attempting to delete file from ${section}: ${filePath}`);
         
         if (fs.existsSync(filePath)) {
           try {
